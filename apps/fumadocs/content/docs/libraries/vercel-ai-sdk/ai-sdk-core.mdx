@@ -1,0 +1,260 @@
+---
+title: AI SDK Core
+description: Learn about AI SDK Core functions for text generation, structured data, and tool usage
+---
+
+# AI SDK Core
+
+AI SDK Core provides a unified API for working with large language models (LLMs), offering standardized functions for text generation, structured data generation, and tool usage.
+
+## Core Functions
+
+### Text Generation
+
+#### generateText
+
+Generate text and tool calls for non-interactive use cases like automation, email drafting, or summarization.
+
+```ts
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'Write a vegetarian lasagna recipe for 4 people.',
+});
+```
+
+#### streamText
+
+Stream text and tool calls for interactive use cases like chatbots and real-time content generation.
+
+```ts
+import { streamText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { textStream } = await streamText({
+  model: ollama('llama3.2'),
+  prompt: 'Explain quantum computing',
+});
+
+for await (const textPart of textStream) {
+  process.stdout.write(textPart);
+}
+```
+
+### Structured Data Generation
+
+#### generateObject
+
+Generate structured, typed objects that match a Zod schema. Perfect for data extraction and classification.
+
+```ts
+import { generateObject } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { z } from 'zod';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { object } = await generateObject({
+  model: ollama('llama3.2'),
+  schema: z.object({
+    recipe: z.object({
+      name: z.string(),
+      ingredients: z.array(z.string()),
+      steps: z.array(z.string()),
+    }),
+  }),
+  prompt: 'Generate a lasagna recipe.',
+});
+```
+
+#### streamObject
+
+Stream structured objects for real-time UI generation.
+
+```ts
+import { streamObject } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { z } from 'zod';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { partialObjectStream } = await streamObject({
+  model: ollama('llama3.2'),
+  schema: z.object({
+    characters: z.array(z.object({
+      name: z.string(),
+      class: z.string(),
+      description: z.string(),
+    })),
+  }),
+  prompt: 'Generate 3 RPG character ideas.',
+});
+
+for await (const partialObject of partialObjectStream) {
+  console.log(partialObject);
+}
+```
+
+## Advanced Features
+
+### Tool Calling
+
+Enable LLMs to use external tools and APIs.
+
+```ts
+import { generateText, tool } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { z } from 'zod';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'What is the weather in San Francisco?',
+  tools: {
+    getWeather: tool({
+      description: 'Get the weather in a location',
+      parameters: z.object({
+        location: z.string(),
+      }),
+      execute: async ({ location }) => {
+        // Call weather API
+        return { temperature: 72, condition: 'sunny' };
+      },
+    }),
+  },
+});
+```
+
+### Multi-Modal Inputs
+
+Work with text, images, and files.
+
+```ts
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llava'),
+  messages: [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'What is in this image?' },
+        { 
+          type: 'image', 
+          image: 'https://example.com/image.jpg' 
+        },
+      ],
+    },
+  ],
+});
+```
+
+### Embeddings
+
+Generate vector embeddings for semantic search and RAG applications.
+
+```ts
+import { embed } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { embedding } = await embed({
+  model: ollama.embedding('nomic-embed-text'),
+  value: 'sunny day at the beach',
+});
+```
+
+## Configuration Options
+
+### Model Settings
+
+- **temperature**: Controls randomness (0-2)
+- **maxTokens**: Maximum tokens to generate
+- **topP**: Nucleus sampling parameter
+- **frequencyPenalty**: Reduce repetition
+- **presencePenalty**: Encourage topic diversity
+
+```ts
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'Write a poem',
+  temperature: 0.7,
+  maxTokens: 100,
+});
+```
+
+### System Messages
+
+Provide context and instructions to the model.
+
+```ts
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  system: 'You are a helpful assistant that writes clear, concise content.',
+  prompt: 'Summarize this article...',
+});
+```
+
+## Error Handling
+
+Handle errors gracefully with try-catch blocks.
+
+```ts
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+try {
+  const { text } = await generateText({
+    model: ollama('llama3.2'),
+    prompt: 'Hello world',
+  });
+} catch (error) {
+  console.error('Error generating text:', error);
+}
+```
+
+## Best Practices
+
+1. **Choose the right function**: Use `generateText` for automation, `streamText` for UI
+2. **Use structured outputs**: Leverage `generateObject` for predictable data formats
+3. **Implement retries**: Handle transient errors with retry logic
+4. **Monitor token usage**: Track costs with usage information
+5. **Cache responses**: Store expensive operations when appropriate
+6. **Stream when possible**: Improve perceived performance with streaming

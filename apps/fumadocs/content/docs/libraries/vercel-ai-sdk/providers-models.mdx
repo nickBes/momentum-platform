@@ -1,0 +1,405 @@
+---
+title: Providers and Models
+description: Learn about open-source AI providers and OpenAPI-compatible endpoints
+---
+
+# Providers and Models
+
+The AI SDK supports open-source models and OpenAPI-compatible providers, giving you full control and flexibility.
+
+## OpenAPI-Compatible Providers
+
+### Ollama
+
+Run LLMs locally with Ollama.
+
+```bash
+npm install ai @ai-sdk/openai-compatible
+```
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { generateText } from 'ai';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'Hello world',
+});
+```
+
+**Popular Models**: `llama3.2`, `llama3.1`, `mistral`, `mixtral`, `phi3`, `qwen2.5`, `deepseek-r1`, `gemma2`
+
+### LM Studio
+
+Desktop app for running LLMs locally.
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const lmstudio = createOpenAICompatible({
+  name: 'lmstudio',
+  baseURL: 'http://localhost:1234/v1',
+});
+
+const { text } = await generateText({
+  model: lmstudio('llama-3.2-3b'),
+  prompt: 'Hello world',
+});
+```
+
+### LocalAI
+
+Self-hosted OpenAI-compatible API.
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const localai = createOpenAICompatible({
+  name: 'localai',
+  baseURL: 'http://localhost:8080/v1',
+  apiKey: 'not-needed',
+});
+```
+
+### vLLM
+
+High-throughput inference server.
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const vllm = createOpenAICompatible({
+  name: 'vllm',
+  baseURL: 'http://localhost:8000/v1',
+  apiKey: 'token',
+});
+```
+
+### Text Generation WebUI
+
+Gradio-based web interface for running LLMs.
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const textgen = createOpenAICompatible({
+  name: 'text-generation-webui',
+  baseURL: 'http://localhost:5000/v1',
+});
+```
+
+## Open Platform Providers
+
+### Groq
+
+Fast inference for open-source models.
+
+```bash
+npm install @ai-sdk/groq
+```
+
+```ts
+import { groq } from '@ai-sdk/groq';
+
+const { text } = await generateText({
+  model: groq('llama-3.1-70b-versatile'),
+  prompt: 'Hello world',
+});
+```
+
+**Models**: `llama-3.1-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`, `gemma2-9b-it`
+
+### Together.ai
+
+Open-source model hosting platform.
+
+```bash
+npm install @ai-sdk/togetherai
+```
+
+```ts
+import { togetherai } from '@ai-sdk/togetherai';
+
+const { text } = await generateText({
+  model: togetherai('meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'),
+  prompt: 'Hello world',
+});
+```
+
+### Fireworks
+
+Fast inference for open-source models.
+
+```bash
+npm install @ai-sdk/fireworks
+```
+
+```ts
+import { fireworks } from '@ai-sdk/fireworks';
+
+const { text } = await generateText({
+  model: fireworks('accounts/fireworks/models/llama-v3p1-70b-instruct'),
+  prompt: 'Hello world',
+});
+```
+
+### Replicate
+
+Run open-source models in the cloud.
+
+```bash
+npm install @ai-sdk/replicate
+```
+
+```ts
+import { replicate } from '@ai-sdk/replicate';
+
+const { text } = await generateText({
+  model: replicate('meta/meta-llama-3-70b-instruct'),
+  prompt: 'Hello world',
+});
+```
+
+### Hugging Face
+
+Access thousands of open-source models.
+
+```bash
+npm install @ai-sdk/huggingface
+```
+
+```ts
+import { huggingface } from '@ai-sdk/huggingface';
+
+const { text } = await generateText({
+  model: huggingface('meta-llama/Meta-Llama-3-8B-Instruct'),
+  prompt: 'Hello world',
+});
+```
+
+## Provider Configuration
+
+### Environment Variables
+
+Set API keys via environment variables (for cloud providers).
+
+```bash
+# .env.local
+GROQ_API_KEY=gsk_...
+TOGETHER_API_KEY=...
+FIREWORKS_API_KEY=...
+REPLICATE_API_TOKEN=...
+HUGGINGFACE_API_KEY=...
+```
+
+### Custom Configuration
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const provider = createOpenAICompatible({
+  name: 'my-provider',
+  apiKey: process.env.MY_API_KEY,
+  baseURL: 'https://api.myprovider.com/v1',
+  headers: {
+    'Custom-Header': 'value',
+  },
+});
+```
+
+## Model Capabilities
+
+### Text Generation
+
+All providers support basic text generation.
+
+```ts
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'Write a story',
+});
+```
+
+### Streaming
+
+Most providers support streaming responses.
+
+```ts
+const { textStream } = await streamText({
+  model: ollama('llama3.2'),
+  prompt: 'Write a story',
+});
+
+for await (const chunk of textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+### Structured Outputs
+
+Generate JSON objects with type safety (requires model support).
+
+```ts
+import { z } from 'zod';
+
+const { object } = await generateObject({
+  model: ollama('llama3.2'),
+  schema: z.object({
+    title: z.string(),
+    summary: z.string(),
+  }),
+  prompt: 'Generate a blog post outline',
+});
+```
+
+### Tool Calling
+
+Use tools with supported models.
+
+```ts
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  tools: {
+    getWeather: tool({
+      description: 'Get weather',
+      parameters: z.object({
+        location: z.string(),
+      }),
+      execute: async ({ location }) => {
+        return { temp: 72, condition: 'sunny' };
+      },
+    }),
+  },
+  prompt: 'What is the weather in SF?',
+});
+```
+
+### Multi-Modal
+
+Process images with vision-capable models.
+
+```ts
+const { text } = await generateText({
+  model: ollama('llava'),
+  messages: [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'What is in this image?' },
+        { type: 'image', image: 'https://example.com/image.jpg' },
+      ],
+    },
+  ],
+});
+```
+
+## Switching Providers
+
+The AI SDK's unified interface makes switching providers easy.
+
+```ts
+// Ollama (local)
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+const model = ollama('llama3.2');
+
+// Groq (cloud)
+import { groq } from '@ai-sdk/groq';
+const model = groq('llama-3.1-70b-versatile');
+
+// Together.ai (cloud)
+import { togetherai } from '@ai-sdk/togetherai';
+const model = togetherai('meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo');
+```
+
+## Embeddings
+
+Generate embeddings for semantic search and RAG.
+
+### Ollama Embeddings
+
+```ts
+import { embed } from 'ai';
+
+const { embedding } = await embed({
+  model: ollama.embedding('nomic-embed-text'),
+  value: 'The quick brown fox',
+});
+```
+
+### Hugging Face Embeddings
+
+```bash
+npm install @ai-sdk/huggingface
+```
+
+```ts
+import { huggingface } from '@ai-sdk/huggingface';
+
+const { embedding } = await embed({
+  model: huggingface.embedding('sentence-transformers/all-MiniLM-L6-v2'),
+  value: 'The quick brown fox',
+});
+```
+
+## Popular Open-Source Models
+
+### Llama 3.2
+
+Meta's latest open model with strong performance.
+- **Sizes**: 1B, 3B, 11B, 90B
+- **Use cases**: General purpose, chat, code
+- **Providers**: Ollama, Groq, Together.ai, Replicate
+
+### Mistral & Mixtral
+
+High-performance open models from Mistral AI.
+- **Models**: mistral-7b, mixtral-8x7b, mixtral-8x22b
+- **Use cases**: General purpose, multilingual
+- **Providers**: Ollama, Together.ai, Fireworks
+
+### Qwen 2.5
+
+Alibaba's open multilingual model.
+- **Sizes**: 0.5B to 72B
+- **Use cases**: Multilingual, code, math
+- **Providers**: Ollama, Together.ai
+
+### Phi-3
+
+Microsoft's efficient small models.
+- **Sizes**: Mini (3.8B), Small (7B), Medium (14B)
+- **Use cases**: Edge devices, low-resource environments
+- **Providers**: Ollama, Hugging Face
+
+### DeepSeek
+
+High-performance reasoning models.
+- **Models**: deepseek-v3, deepseek-r1
+- **Use cases**: Code, reasoning, math
+- **Providers**: Ollama, DeepSeek API
+
+### Gemma 2
+
+Google's open lightweight models.
+- **Sizes**: 2B, 9B, 27B
+- **Use cases**: General purpose, efficient inference
+- **Providers**: Ollama, Groq, Hugging Face
+
+## Best Practices
+
+1. **Start local**: Use Ollama for development and testing
+2. **Use environment variables**: Keep API keys secure
+3. **Implement fallbacks**: Have backup providers for reliability
+4. **Monitor usage**: Track costs for cloud providers
+5. **Choose appropriate models**: Balance size, speed, and capability
+6. **Cache when possible**: Reduce API calls for repeated queries
+7. **Test with multiple providers**: Find the best fit for your use case

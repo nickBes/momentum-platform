@@ -1,0 +1,458 @@
+---
+title: Advanced Queries
+description: Relational queries, joins, and advanced querying with Drizzle
+---
+
+# Advanced Queries
+
+Drizzle provides powerful querying capabilities including relational queries, complex joins, and advanced filtering.
+
+## Relational Queries
+
+### Setup Relations
+
+First, define relations in your schema:
+
+```typescript
+import { relations } from 'drizzle-orm';
+import { pgTable, serial, text, integer } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+export const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  authorId: integer('author_id').notNull(),
+});
+
+// Define relations
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+}));
+
+export const postsRelations = relations(posts, ({ one }) => ({
+  author: one(users, {
+    fields: [posts.authorId],
+    references: [users.id],
+  }),
+}));
+```
+
+### Query with Relations
+
+```typescript
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from './schema';
+
+const db = drizzle(pool, { schema });
+
+// Query users with their posts
+const usersWithPosts = await db.query.users.findMany({
+  with: {
+    posts: true,
+  },
+});
+
+// Result structure:
+// [{
+//   id: 1,
+//   name: 'John',
+//   posts: [
+//     { id: 1, title: 'Post 1', authorId: 1 },
+//     { id: 2, title: 'Post 2', authorId: 1 }
+//   ]
+// }]
+```
+
+### Nested Relations
+
+```typescript
+export const comments = pgTable('comments', {
+  id: serial('id').primaryKey(),
+  text: text('text').notNull(),
+  postId: integer('post_id').notNull(),
+  authorId: integer('author_id').notNull(),
+});
+
+export const commentsRelations = relations(comments, ({ one }) => ({
+  post: one(posts, {
+    fields: [comments.postId],
+    references: [posts.id],
+  }),
+  author: one(users, {
+    fields: [comments.authorId],
+    references: [users.id],
+  }),
+}));
+
+// Query deeply nested relations
+const data = await db.query.users.findMany({
+  with: {
+    posts: {
+      with: {
+        comments: {
+          with: {
+            author: true,
+          },
+        },
+      },
+    },
+  },
+});
+```
+
+### Filtering Relations
+
+```typescript
+import { eq, gt } from 'drizzle-orm';
+
+// Filter related data
+const activeUsers = await db.query.users.findMany({
+  where: eq(users.isActive, true),
+  with: {
+    posts: {
+      where: gt(posts.views, 100),
+      orderBy: [desc(posts.createdAt)],
+      limit: 5,
+    },
+  },
+});
+```
+
+## Complex Joins
+
+### Inner Join
+
+```typescript
+import { eq } from 'drizzle-orm';
+
+const result = await db
+  .select({
+    userId: users.id,
+    userName: users.name,
+    postTitle: posts.title,
+  })
+  .from(users)
+  .innerJoin(posts, eq(posts.authorId, users.id));
+```
+
+### Left Join
+
+```typescript
+// Get all users, including those without posts
+const result = await db
+  .select()
+  .from(users)
+  .leftJoin(posts, eq(posts.authorId, users.id));
+```
+
+### Multiple Joins
+
+```typescript
+const result = await db
+  .select({
+    user: users,
+    post: posts,
+    comment: comments,
+  })
+  .from(users)
+  .innerJoin(posts, eq(posts.authorId, users.id))
+  .leftJoin(comments, eq(comments.postId, posts.id));
+```
+
+### Self Join
+
+```typescript
+import { alias } from 'drizzle-orm/pg-core';
+
+// Find users who invited other users
+const inviter = alias(users, 'inviter');
+
+const result = await db
+  .select({
+    userId: users.id,
+    userName: users.name,
+    invitedBy: inviter.name,
+  })
+  .from(users)
+  .leftJoin(inviter, eq(users.invitedBy, inviter.id));
+```
+
+## Aggregations
+
+### Count
+
+```typescript
+import { count, sql } from 'drizzle-orm';
+
+// Count all users
+const [{ total }] = await db
+  .select({ total: count() })
+  .from(users);
+
+// Count with condition
+const [{ activeCount }] = await db
+  .select({ activeCount: count() })
+  .from(users)
+  .where(eq(users.isActive, true));
+```
+
+### Group By
+
+```typescript
+// Count posts per user
+const postCounts = await db
+  .select({
+    authorId: posts.authorId,
+    count: count(),
+  })
+  .from(posts)
+  .groupBy(posts.authorId);
+```
+
+### Aggregate Functions
+
+```typescript
+import { sum, avg, min, max } from 'drizzle-orm';
+
+// Multiple aggregations
+const stats = await db
+  .select({
+    total: sum(orders.amount),
+    average: avg(orders.amount),
+    min: min(orders.amount),
+    max: max(orders.amount),
+  })
+  .from(orders);
+```
+
+### Having Clause
+
+```typescript
+// Find users with more than 5 posts
+const prolificAuthors = await db
+  .select({
+    authorId: posts.authorId,
+    postCount: count(),
+  })
+  .from(posts)
+  .groupBy(posts.authorId)
+  .having(({ postCount }) => gt(postCount, 5));
+```
+
+## Subqueries
+
+### In Subquery
+
+```typescript
+import { inArray } from 'drizzle-orm';
+
+// Find users who have posts
+const activeAuthors = db
+  .select({ id: posts.authorId })
+  .from(posts)
+  .groupBy(posts.authorId);
+
+const users = await db
+  .select()
+  .from(users)
+  .where(inArray(users.id, activeAuthors));
+```
+
+### Exists Subquery
+
+```typescript
+import { exists } from 'drizzle-orm';
+
+const hasPostsSubquery = db
+  .select({ id: posts.id })
+  .from(posts)
+  .where(eq(posts.authorId, users.id));
+
+const usersWithPosts = await db
+  .select()
+  .from(users)
+  .where(exists(hasPostsSubquery));
+```
+
+## Window Functions
+
+```typescript
+import { sql } from 'drizzle-orm';
+
+// Rank users by post count
+const rankedUsers = await db
+  .select({
+    userId: users.id,
+    userName: users.name,
+    postCount: count(posts.id),
+    rank: sql`rank() over (order by count(${posts.id}) desc)`,
+  })
+  .from(users)
+  .leftJoin(posts, eq(posts.authorId, users.id))
+  .groupBy(users.id);
+```
+
+## Full-Text Search
+
+### PostgreSQL
+
+```typescript
+import { sql } from 'drizzle-orm';
+
+// Full-text search
+const results = await db
+  .select()
+  .from(posts)
+  .where(
+    sql`to_tsvector('english', ${posts.title} || ' ' || ${posts.content}) @@ to_tsquery('english', ${'typescript'})`
+  );
+```
+
+### With Ranking
+
+```typescript
+const results = await db
+  .select({
+    post: posts,
+    rank: sql`ts_rank(to_tsvector('english', ${posts.content}), to_tsquery('english', ${'drizzle'}))`,
+  })
+  .from(posts)
+  .orderBy(desc(sql`ts_rank(...)`));
+```
+
+## Pagination
+
+### Offset-Based
+
+```typescript
+const pageSize = 10;
+const page = 1;
+
+const results = await db
+  .select()
+  .from(users)
+  .limit(pageSize)
+  .offset((page - 1) * pageSize);
+```
+
+### Cursor-Based
+
+```typescript
+// First page
+const firstPage = await db
+  .select()
+  .from(users)
+  .orderBy(asc(users.id))
+  .limit(10);
+
+// Next page
+const lastId = firstPage[firstPage.length - 1].id;
+const nextPage = await db
+  .select()
+  .from(users)
+  .where(gt(users.id, lastId))
+  .orderBy(asc(users.id))
+  .limit(10);
+```
+
+## Dynamic Queries
+
+Build queries conditionally:
+
+```typescript
+import { SQL, and } from 'drizzle-orm';
+
+function buildUserQuery(filters: {
+  isActive?: boolean;
+  minAge?: number;
+  search?: string;
+}) {
+  const conditions: SQL[] = [];
+
+  if (filters.isActive !== undefined) {
+    conditions.push(eq(users.isActive, filters.isActive));
+  }
+
+  if (filters.minAge !== undefined) {
+    conditions.push(gte(users.age, filters.minAge));
+  }
+
+  if (filters.search) {
+    conditions.push(ilike(users.name, `%${filters.search}%`));
+  }
+
+  return db
+    .select()
+    .from(users)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+}
+
+// Usage
+const results = await buildUserQuery({
+  isActive: true,
+  minAge: 18,
+  search: 'john',
+});
+```
+
+## Union Queries
+
+```typescript
+// Combine results from multiple queries
+const activeUsers = db
+  .select({ id: users.id, name: users.name })
+  .from(users)
+  .where(eq(users.isActive, true));
+
+const premiumUsers = db
+  .select({ id: users.id, name: users.name })
+  .from(users)
+  .where(eq(users.isPremium, true));
+
+const combined = await activeUsers.union(premiumUsers);
+```
+
+## Raw SQL
+
+For complex queries not covered by the builder:
+
+```typescript
+import { sql } from 'drizzle-orm';
+
+const result = await db.execute(
+  sql`SELECT * FROM users WHERE created_at > NOW() - INTERVAL '7 days'`
+);
+```
+
+## Query Performance
+
+### Prepared Statements
+
+```typescript
+const getUserByEmail = db
+  .select()
+  .from(users)
+  .where(eq(users.email, sql.placeholder('email')))
+  .prepare('get_user_by_email');
+
+// Reuse prepared statement
+const user1 = await getUserByEmail.execute({ email: 'john@example.com' });
+const user2 = await getUserByEmail.execute({ email: 'jane@example.com' });
+```
+
+### Indexes
+
+Use indexes for frequently queried columns:
+
+```typescript
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull(),
+}, (table) => ({
+  emailIdx: index('email_idx').on(table.email),
+}));
+```

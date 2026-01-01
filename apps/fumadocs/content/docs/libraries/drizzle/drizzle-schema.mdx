@@ -1,0 +1,269 @@
+---
+title: Schema Declaration
+description: Define your database schema with Drizzle ORM
+---
+
+# Schema Declaration
+
+Drizzle schema consists of tables, columns, constraints, and relationships defined in TypeScript. The schema serves as the source of truth for both queries (Drizzle ORM) and migrations (Drizzle Kit).
+
+## Table Declaration
+
+Define tables using the appropriate table function for your database:
+
+```typescript
+// PostgreSQL
+import { pgTable, serial, text, integer } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  age: integer('age'),
+});
+
+// MySQL
+import { mysqlTable, serial, text, int } from 'drizzle-orm/mysql-core';
+
+export const users = mysqlTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  age: int('age'),
+});
+
+// SQLite
+import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  age: integer('age'),
+});
+```
+
+## Column Types
+
+### PostgreSQL Column Types
+
+```typescript
+import { 
+  serial, integer, text, varchar, boolean, timestamp,
+  json, jsonb, uuid, numeric, decimal
+} from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 256 }).notNull(),
+  email: text('email').notNull().unique(),
+  isActive: boolean('is_active').default(true),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+```
+
+### MySQL Column Types
+
+```typescript
+import { 
+  serial, int, varchar, text, boolean, datetime,
+  json, timestamp
+} from 'drizzle-orm/mysql-core';
+
+export const users = mysqlTable('users', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 256 }).notNull(),
+  email: text('email').notNull(),
+  isActive: boolean('is_active').default(true),
+  metadata: json('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+```
+
+### SQLite Column Types
+
+```typescript
+import { 
+  integer, text, blob, real 
+} from 'drizzle-orm/sqlite-core';
+
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  avatar: blob('avatar'),
+  rating: real('rating'),
+});
+```
+
+## Constraints
+
+### Primary Keys
+
+```typescript
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+});
+
+// Composite primary key
+export const userRoles = pgTable('user_roles', {
+  userId: integer('user_id'),
+  roleId: integer('role_id'),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.roleId] }),
+}));
+```
+
+### Foreign Keys
+
+```typescript
+export const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  authorId: integer('author_id').references(() => users.id),
+  content: text('content').notNull(),
+});
+
+// With cascade delete
+export const comments = pgTable('comments', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id')
+    .references(() => posts.id, { onDelete: 'cascade' }),
+  text: text('text').notNull(),
+});
+```
+
+### Unique Constraints
+
+```typescript
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  username: text('username').notNull(),
+}, (table) => ({
+  usernameIdx: uniqueIndex('username_idx').on(table.username),
+}));
+```
+
+### Check Constraints
+
+```typescript
+export const products = pgTable('products', {
+  id: serial('id').primaryKey(),
+  price: integer('price').notNull(),
+}, (table) => ({
+  checkConstraint: check('price_check', sql`${table.price} > 0`),
+}));
+```
+
+## Indexes
+
+```typescript
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull(),
+  name: text('name').notNull(),
+}, (table) => ({
+  emailIdx: index('email_idx').on(table.email),
+  nameIdx: index('name_idx').on(table.name),
+  uniqueEmailIdx: uniqueIndex('unique_email_idx').on(table.email),
+}));
+```
+
+## Default Values
+
+```typescript
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  role: text('role').default('user'),
+  createdAt: timestamp('created_at').defaultNow(),
+  isActive: boolean('is_active').default(true),
+});
+```
+
+## Type Inference
+
+Extract TypeScript types from your schema:
+
+```typescript
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+});
+
+// Infer insert type
+export type InsertUser = typeof users.$inferInsert;
+
+// Infer select type
+export type SelectUser = typeof users.$inferSelect;
+```
+
+## Relations
+
+Define relationships between tables:
+
+```typescript
+import { relations } from 'drizzle-orm';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+export const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  authorId: integer('author_id').notNull(),
+  content: text('content').notNull(),
+});
+
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+}));
+
+export const postsRelations = relations(posts, ({ one }) => ({
+  author: one(users, {
+    fields: [posts.authorId],
+    references: [users.id],
+  }),
+}));
+```
+
+## Schema Organization
+
+Organize your schema across multiple files:
+
+```typescript
+// schema/users.ts
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+// schema/posts.ts
+export const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  authorId: integer('author_id').notNull(),
+});
+
+// schema/index.ts
+export * from './users';
+export * from './posts';
+```
+
+## Drizzle Config
+
+Create a `drizzle.config.ts` file:
+
+```typescript
+import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  schema: './src/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+This configuration is used by Drizzle Kit for migrations and other operations.

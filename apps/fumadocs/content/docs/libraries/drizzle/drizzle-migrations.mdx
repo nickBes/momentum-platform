@@ -1,0 +1,349 @@
+---
+title: Migrations
+description: Manage database schema changes with Drizzle Kit
+---
+
+# Migrations
+
+Drizzle Kit provides tools for managing database schema changes through migrations.
+
+## Quick Start
+
+### 1. Install Drizzle Kit
+
+```bash
+npm i -D drizzle-kit
+```
+
+### 2. Configure Drizzle
+
+Create a `drizzle.config.ts` file:
+
+```typescript
+import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  schema: './src/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql', // or 'mysql', 'sqlite'
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+### 3. Generate Migrations
+
+```bash
+npx drizzle-kit generate
+```
+
+This creates SQL migration files in the `./drizzle` directory.
+
+### 4. Apply Migrations
+
+```bash
+npx drizzle-kit migrate
+```
+
+## Migration Workflow
+
+### Generate Migration
+
+When you change your schema:
+
+```typescript
+// Before
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+// After - add email field
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+});
+```
+
+Run:
+
+```bash
+npx drizzle-kit generate
+```
+
+Drizzle Kit will create a migration file:
+
+```sql
+-- drizzle/0001_add_email.sql
+ALTER TABLE "users" ADD COLUMN "email" text NOT NULL;
+```
+
+### Apply Migration
+
+```bash
+npx drizzle-kit migrate
+```
+
+This executes the migration against your database.
+
+## Migration Files
+
+Migration files are stored in the `out` directory (default: `./drizzle`):
+
+```
+drizzle/
+├── 0000_initial.sql
+├── 0001_add_email.sql
+├── 0002_add_posts.sql
+└── meta/
+    ├── _journal.json
+    └── 0000_snapshot.json
+```
+
+### Migration Structure
+
+```sql
+-- Migration Up
+CREATE TABLE "users" (
+  "id" serial PRIMARY KEY,
+  "name" text NOT NULL,
+  "email" text NOT NULL
+);
+
+-- statement-breakpoint
+
+CREATE INDEX "email_idx" ON "users" ("email");
+```
+
+## Commands
+
+### Generate
+
+Create migration files from schema changes:
+
+```bash
+# Basic
+npx drizzle-kit generate
+
+# With custom name
+npx drizzle-kit generate --name add_users_table
+
+# Custom config file
+npx drizzle-kit generate --config=custom.config.ts
+```
+
+### Migrate
+
+Apply migrations to database:
+
+```bash
+# Basic
+npx drizzle-kit migrate
+
+# Specify config
+npx drizzle-kit migrate --config=drizzle.config.ts
+```
+
+### Push
+
+Push schema directly to database (without migrations):
+
+```bash
+npx drizzle-kit push
+```
+
+**Use with caution** - this directly modifies your database without creating migration files.
+
+### Pull
+
+Introspect existing database and generate schema:
+
+```bash
+npx drizzle-kit pull
+```
+
+This generates TypeScript schema from your existing database.
+
+### Studio
+
+Launch Drizzle Studio to browse and manage your database:
+
+```bash
+npx drizzle-kit studio
+```
+
+Opens a web UI at `https://local.drizzle.studio`
+
+## Programmatic Migrations
+
+Run migrations in your application code:
+
+```typescript
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const db = drizzle(pool);
+
+// Run migrations
+await migrate(db, { migrationsFolder: './drizzle' });
+```
+
+## Best Practices
+
+### 1. Version Control
+
+Always commit migration files to version control:
+
+```bash
+git add drizzle/
+git commit -m "Add email column to users"
+```
+
+### 2. Test Migrations
+
+Test migrations in a development environment before production:
+
+```bash
+# Development
+DATABASE_URL=dev_db npx drizzle-kit migrate
+
+# Staging
+DATABASE_URL=staging_db npx drizzle-kit migrate
+
+# Production
+DATABASE_URL=prod_db npx drizzle-kit migrate
+```
+
+### 3. Data Migrations
+
+For complex data transformations, create custom migrations:
+
+```sql
+-- drizzle/0003_migrate_data.sql
+UPDATE users SET email = LOWER(email);
+```
+
+### 4. Rollback Strategy
+
+Keep track of applied migrations to enable rollbacks:
+
+```typescript
+// Check migration status
+const migrations = await db.query.migrations.findMany();
+```
+
+## Configuration Options
+
+### Schema Path
+
+Specify schema location:
+
+```typescript
+export default defineConfig({
+  schema: './src/db/schema.ts',
+  // or multiple files
+  schema: ['./src/db/users.ts', './src/db/posts.ts'],
+  // or glob pattern
+  schema: './src/db/**/*.ts',
+});
+```
+
+### Output Directory
+
+Change migrations output location:
+
+```typescript
+export default defineConfig({
+  out: './migrations',
+});
+```
+
+### Database Credentials
+
+#### PostgreSQL
+
+```typescript
+export default defineConfig({
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL,
+    // or
+    host: 'localhost',
+    port: 5432,
+    user: 'postgres',
+    password: 'password',
+    database: 'mydb',
+  },
+});
+```
+
+#### MySQL
+
+```typescript
+export default defineConfig({
+  dialect: 'mysql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL,
+    // or
+    host: 'localhost',
+    port: 3306,
+    user: 'root',
+    password: 'password',
+    database: 'mydb',
+  },
+});
+```
+
+#### SQLite
+
+```typescript
+export default defineConfig({
+  dialect: 'sqlite',
+  dbCredentials: {
+    url: './dev.db',
+  },
+});
+```
+
+## Environment-Specific Migrations
+
+Use different configs for different environments:
+
+```typescript
+// drizzle.config.prod.ts
+export default defineConfig({
+  schema: './src/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.PROD_DATABASE_URL!,
+  },
+});
+
+// drizzle.config.dev.ts
+export default defineConfig({
+  schema: './src/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DEV_DATABASE_URL!,
+  },
+});
+```
+
+Use with:
+
+```bash
+# Production
+npx drizzle-kit migrate --config=drizzle.config.prod.ts
+
+# Development
+npx drizzle-kit migrate --config=drizzle.config.dev.ts
+```

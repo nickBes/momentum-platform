@@ -1,0 +1,360 @@
+---
+title: CRUD Operations
+description: Create, Read, Update, and Delete operations with Drizzle ORM
+---
+
+# CRUD Operations
+
+Drizzle provides a SQL-like API for performing CRUD operations while maintaining type safety.
+
+## Select (Read)
+
+### Basic Select
+
+```typescript
+import { db } from './db';
+import { users } from './schema';
+
+// Select all users
+const allUsers = await db.select().from(users);
+
+// Select specific columns
+const names = await db
+  .select({ name: users.name, email: users.email })
+  .from(users);
+```
+
+### Filtering with WHERE
+
+```typescript
+import { eq, gt, and, or } from 'drizzle-orm';
+
+// Single condition
+const user = await db
+  .select()
+  .from(users)
+  .where(eq(users.id, 1));
+
+// Multiple conditions
+const activeAdults = await db
+  .select()
+  .from(users)
+  .where(and(
+    eq(users.isActive, true),
+    gt(users.age, 18)
+  ));
+
+// OR conditions
+const adminsOrMods = await db
+  .select()
+  .from(users)
+  .where(or(
+    eq(users.role, 'admin'),
+    eq(users.role, 'moderator')
+  ));
+```
+
+### Ordering
+
+```typescript
+import { asc, desc } from 'drizzle-orm';
+
+// Order by single column
+const sorted = await db
+  .select()
+  .from(users)
+  .orderBy(asc(users.name));
+
+// Order by multiple columns
+const multiSort = await db
+  .select()
+  .from(users)
+  .orderBy(desc(users.createdAt), asc(users.name));
+```
+
+### Limit and Offset
+
+```typescript
+// Pagination
+const page1 = await db
+  .select()
+  .from(users)
+  .limit(10)
+  .offset(0);
+
+const page2 = await db
+  .select()
+  .from(users)
+  .limit(10)
+  .offset(10);
+```
+
+## Insert (Create)
+
+### Single Insert
+
+```typescript
+// Insert one record
+const newUser = await db
+  .insert(users)
+  .values({
+    name: 'John Doe',
+    email: 'john@example.com',
+    age: 30,
+  })
+  .returning();
+
+console.log(newUser); // [{ id: 1, name: 'John Doe', ... }]
+```
+
+### Multiple Inserts
+
+```typescript
+// Insert multiple records
+const newUsers = await db
+  .insert(users)
+  .values([
+    { name: 'Alice', email: 'alice@example.com', age: 25 },
+    { name: 'Bob', email: 'bob@example.com', age: 35 },
+  ])
+  .returning();
+```
+
+### Insert with Default Values
+
+```typescript
+// Use default values from schema
+const user = await db
+  .insert(users)
+  .values({
+    name: 'Jane',
+    email: 'jane@example.com',
+    // age will use default value
+    // createdAt will use defaultNow()
+  })
+  .returning();
+```
+
+### Upsert (Insert or Update)
+
+```typescript
+// PostgreSQL - ON CONFLICT
+await db
+  .insert(users)
+  .values({ id: 1, name: 'John', email: 'john@example.com' })
+  .onConflictDoUpdate({
+    target: users.email,
+    set: { name: 'John Updated' },
+  });
+
+// MySQL - ON DUPLICATE KEY UPDATE
+await db
+  .insert(users)
+  .values({ id: 1, name: 'John', email: 'john@example.com' })
+  .onDuplicateKeyUpdate({
+    set: { name: 'John Updated' },
+  });
+```
+
+## Update
+
+### Basic Update
+
+```typescript
+// Update specific records
+await db
+  .update(users)
+  .set({ name: 'John Updated' })
+  .where(eq(users.id, 1));
+```
+
+### Update Multiple Fields
+
+```typescript
+await db
+  .update(users)
+  .set({
+    name: 'Jane Doe',
+    age: 31,
+    updatedAt: new Date(),
+  })
+  .where(eq(users.email, 'jane@example.com'));
+```
+
+### Increment/Decrement Values
+
+```typescript
+import { sql } from 'drizzle-orm';
+
+// Increment age by 1
+await db
+  .update(users)
+  .set({
+    age: sql`${users.age} + 1`,
+  })
+  .where(eq(users.id, 1));
+
+// Decrement with helper
+import { increment } from 'drizzle-orm';
+
+await db
+  .update(users)
+  .set({
+    points: increment(users.points, 10),
+  })
+  .where(eq(users.id, 1));
+```
+
+### Update with RETURNING
+
+```typescript
+const updated = await db
+  .update(users)
+  .set({ name: 'Updated Name' })
+  .where(eq(users.id, 1))
+  .returning();
+
+console.log(updated); // [{ id: 1, name: 'Updated Name', ... }]
+```
+
+## Delete
+
+### Basic Delete
+
+```typescript
+// Delete specific records
+await db
+  .delete(users)
+  .where(eq(users.id, 1));
+```
+
+### Delete with Multiple Conditions
+
+```typescript
+// Delete inactive users older than 30
+await db
+  .delete(users)
+  .where(and(
+    eq(users.isActive, false),
+    gt(users.age, 30)
+  ));
+```
+
+### Delete All Records
+
+```typescript
+// ⚠️ Be careful! This deletes all records
+await db.delete(users);
+```
+
+### Delete with RETURNING
+
+```typescript
+const deleted = await db
+  .delete(users)
+  .where(eq(users.id, 1))
+  .returning();
+
+console.log(deleted); // [{ id: 1, name: 'John', ... }]
+```
+
+## Transactions
+
+Execute multiple operations atomically:
+
+```typescript
+await db.transaction(async (tx) => {
+  // Insert a user
+  const [user] = await tx
+    .insert(users)
+    .values({ name: 'John', email: 'john@example.com' })
+    .returning();
+
+  // Insert a post for that user
+  await tx
+    .insert(posts)
+    .values({
+      authorId: user.id,
+      title: 'My First Post',
+      content: 'Hello World!',
+    });
+
+  // If any operation fails, all changes are rolled back
+});
+```
+
+## Batch Operations
+
+Perform multiple queries in a single round-trip:
+
+```typescript
+const [users, posts] = await db.batch([
+  db.select().from(users),
+  db.select().from(posts),
+]);
+```
+
+## Joins
+
+Query related data:
+
+```typescript
+import { posts } from './schema';
+
+// Inner join
+const usersWithPosts = await db
+  .select({
+    userId: users.id,
+    userName: users.name,
+    postTitle: posts.title,
+  })
+  .from(users)
+  .innerJoin(posts, eq(posts.authorId, users.id));
+
+// Left join
+const allUsers = await db
+  .select()
+  .from(users)
+  .leftJoin(posts, eq(posts.authorId, users.id));
+```
+
+## Aggregations
+
+```typescript
+import { count, avg, sum, min, max } from 'drizzle-orm';
+
+// Count users
+const [{ value }] = await db
+  .select({ value: count() })
+  .from(users);
+
+// Average age
+const [{ avgAge }] = await db
+  .select({ avgAge: avg(users.age) })
+  .from(users);
+
+// Group by
+const postCounts = await db
+  .select({
+    authorId: posts.authorId,
+    postCount: count(),
+  })
+  .from(posts)
+  .groupBy(posts.authorId);
+```
+
+## Prepared Statements
+
+Optimize repeated queries:
+
+```typescript
+const getUserById = db
+  .select()
+  .from(users)
+  .where(eq(users.id, sql.placeholder('id')))
+  .prepare('get_user_by_id');
+
+// Execute prepared statement
+const user1 = await getUserById.execute({ id: 1 });
+const user2 = await getUserById.execute({ id: 2 });
+```

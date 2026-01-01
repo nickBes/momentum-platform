@@ -1,0 +1,399 @@
+---
+title: RAG and Advanced Patterns
+description: Build retrieval-augmented generation systems and advanced AI patterns
+---
+
+# RAG and Advanced Patterns
+
+Learn how to implement advanced AI patterns including Retrieval-Augmented Generation (RAG), multi-modal applications, and complex workflows.
+
+## Retrieval-Augmented Generation (RAG)
+
+RAG combines information retrieval with text generation to provide accurate, contextual responses.
+
+### Basic RAG Implementation
+
+```ts
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { embed } from 'ai';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+// 1. Generate embeddings for your knowledge base
+const documents = [
+  'The Earth orbits the Sun.',
+  'Mars is the fourth planet.',
+  'Jupiter is the largest planet.',
+];
+
+const documentEmbeddings = await Promise.all(
+  documents.map(async (doc) => {
+    const { embedding } = await embed({
+      model: ollama.embedding('nomic-embed-text'),
+      value: doc,
+    });
+    return { text: doc, embedding };
+  })
+);
+
+// 2. Query with RAG
+async function ragQuery(query: string) {
+  // Generate query embedding
+  const { embedding: queryEmbedding } = await embed({
+    model: ollama.embedding('nomic-embed-text'),
+    value: query,
+  });
+
+  // Find similar documents (using cosine similarity)
+  const similarities = documentEmbeddings.map((doc) => ({
+    text: doc.text,
+    similarity: cosineSimilarity(queryEmbedding, doc.embedding),
+  }));
+
+  const topDocs = similarities
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, 3)
+    .map(d => d.text);
+
+  // Generate answer with context
+  const { text } = await generateText({
+    model: ollama('llama3.2'),
+    messages: [
+      {
+        role: 'system',
+        content: 'Answer based on the provided context only.',
+      },
+      {
+        role: 'user',
+        content: `Context:\n${topDocs.join('\n\n')}\n\nQuestion: ${query}`,
+      },
+    ],
+  });
+
+  return text;
+}
+```
+
+### RAG with Vector Database
+
+```ts
+import { Pinecone } from '@pinecone-database/pinecone';
+import { generateText, embed } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+const index = pinecone.index('knowledge-base');
+
+async function ragWithPinecone(query: string) {
+  // Generate query embedding
+  const { embedding } = await embed({
+    model: ollama.embedding('nomic-embed-text'),
+    value: query,
+  });
+
+  // Query Pinecone
+  const results = await index.query({
+    vector: embedding,
+    topK: 5,
+    includeMetadata: true,
+  });
+
+  // Extract context
+  const context = results.matches
+    .map(match => match.metadata?.text)
+    .filter(Boolean)
+    .join('\n\n');
+
+  // Generate answer
+  const { text } = await generateText({
+    model: ollama('llama3.2'),
+    system: 'Answer using only the provided context.',
+    prompt: `Context:\n${context}\n\nQuestion: ${query}`,
+  });
+
+  return { answer: text, sources: results.matches };
+}
+```
+
+## Multi-Modal Applications
+
+### Image Analysis
+
+```ts
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llava'),
+  messages: [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'What objects are in this image?' },
+        {
+          type: 'image',
+          image: 'https://example.com/image.jpg',
+        },
+      ],
+    },
+  ],
+});
+```
+
+### PDF Processing
+
+```ts
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { readFileSync } from 'fs';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  messages: [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Summarize this PDF document.' },
+        {
+          type: 'file',
+          data: readFileSync('./document.pdf'),
+          mediaType: 'application/pdf',
+        },
+      ],
+    },
+  ],
+});
+```
+
+### Audio Transcription
+
+```ts
+import { experimental_transcribe as transcribe } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const transcript = await transcribe({
+  model: ollama.transcription('whisper'),
+  audio: readFileSync('./audio.mp3'),
+});
+
+console.log(transcript.text);
+```
+
+## Advanced Workflows
+
+### Sequential Processing
+
+Process data through multiple AI steps.
+
+```ts
+import { generateText, generateObject } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { z } from 'zod';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+async function analyzeDocument(document: string) {
+  // Step 1: Extract entities
+  const { object: entities } = await generateObject({
+    model: ollama('llama3.2'),
+    schema: z.object({
+      people: z.array(z.string()),
+      places: z.array(z.string()),
+      topics: z.array(z.string()),
+    }),
+    prompt: `Extract entities from: ${document}`,
+  });
+
+  // Step 2: Generate summary
+  const { text: summary } = await generateText({
+    model: ollama('llama3.2'),
+    prompt: `Summarize this document focusing on: ${entities.topics.join(', ')}\n\n${document}`,
+  });
+
+  // Step 3: Generate insights
+  const { object: insights } = await generateObject({
+    model: ollama('llama3.2'),
+    schema: z.object({
+      keyPoints: z.array(z.string()),
+      sentiment: z.enum(['positive', 'negative', 'neutral']),
+      actionItems: z.array(z.string()),
+    }),
+    prompt: `Analyze: ${summary}`,
+  });
+
+  return { entities, summary, insights };
+}
+```
+
+### Parallel Processing
+
+Process multiple items concurrently.
+
+```ts
+async function processBatch(items: string[]) {
+  const results = await Promise.all(
+    items.map(async (item) => {
+      const { text } = await generateText({
+        model: ollama('llama3.2'),
+        prompt: `Analyze: ${item}`,
+      });
+      return { item, analysis: text };
+    })
+  );
+
+  return results;
+}
+```
+
+### Streaming with Transformations
+
+Transform streaming data in real-time.
+
+```ts
+import { streamText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { textStream } = await streamText({
+  model: ollama('llama3.2'),
+  prompt: 'Write a story',
+});
+
+// Transform stream
+const transformedStream = textStream.pipeThrough(
+  new TransformStream({
+    transform(chunk, controller) {
+      // Uppercase every word
+      const transformed = chunk
+        .split(' ')
+        .map(word => word.toUpperCase())
+        .join(' ');
+      controller.enqueue(transformed);
+    },
+  })
+);
+
+for await (const chunk of transformedStream) {
+  process.stdout.write(chunk);
+}
+```
+
+## Caching and Optimization
+
+### Response Caching
+
+```ts
+const cache = new Map<string, string>();
+
+async function cachedGenerate(prompt: string) {
+  if (cache.has(prompt)) {
+    return cache.get(prompt);
+  }
+
+  const { text } = await generateText({
+    model: ollama('llama3.2'),
+    prompt,
+  });
+
+  cache.set(prompt, text);
+  return text;
+}
+```
+
+## Error Recovery
+
+### Retry Logic
+
+```ts
+async function generateWithRetry(
+  prompt: string,
+  maxRetries = 3
+): Promise<string> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const { text } = await generateText({
+        model: ollama('llama3.2'),
+        prompt,
+      });
+      return text;
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+```
+
+### Fallback Providers
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createGroq } from '@ai-sdk/groq';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
+
+async function generateWithFallback(prompt: string) {
+  try {
+    const { text } = await generateText({
+      model: ollama('llama3.2'),
+      prompt,
+    });
+    return text;
+  } catch (error) {
+    console.warn('Ollama failed, trying Groq...');
+    const { text } = await generateText({
+      model: groq('llama-3.2-90b-text-preview'),
+      prompt,
+    });
+    return text;
+  }
+}
+```
+
+## Best Practices
+
+1. **Use embeddings for search**: Vector search is faster than semantic search
+2. **Cache expensive operations**: Store embeddings and responses when appropriate
+3. **Implement retry logic**: Handle transient errors gracefully
+4. **Monitor token usage**: Track costs for embeddings and generation
+5. **Optimize context size**: Only include relevant documents in prompts
+6. **Use streaming**: Improve perceived performance for users
+7. **Batch when possible**: Process multiple items concurrently
+8. **Validate outputs**: Check structured data matches expected schemas

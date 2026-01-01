@@ -1,0 +1,175 @@
+---
+title: Vercel AI SDK
+description: TypeScript toolkit for building AI applications with React, Next.js, and more
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+# Vercel AI SDK
+
+The AI SDK is the TypeScript toolkit for building AI-powered applications and agents. It provides a unified interface for working with multiple AI providers, framework-agnostic UI hooks, and powerful tools for building sophisticated AI applications.
+
+## Quick Start
+
+```bash
+npm install ai @ai-sdk/react @ai-sdk/openai-compatible
+```
+
+```tsx
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'What is the meaning of life?',
+});
+```
+
+## Documentation
+
+<Cards>
+  <Card
+    title="Overview"
+    description="Introduction to the AI SDK, its benefits, and core concepts"
+    href="/docs/libraries/vercel-ai-sdk/ai-sdk-overview"
+  />
+  <Card
+    title="AI SDK Core"
+    description="Learn about text generation, structured data, and tool usage"
+    href="/docs/libraries/vercel-ai-sdk/ai-sdk-core"
+  />
+  <Card
+    title="AI SDK UI"
+    description="Build interactive chat and completion interfaces with hooks"
+    href="/docs/libraries/vercel-ai-sdk/ai-sdk-ui"
+  />
+  <Card
+    title="Providers & Models"
+    description="Work with Ollama, Groq, Together.ai, and other open-source providers"
+    href="/docs/libraries/vercel-ai-sdk/providers-models"
+  />
+  <Card
+    title="Building Agents"
+    description="Create AI agents that use tools to accomplish complex tasks"
+    href="/docs/libraries/vercel-ai-sdk/building-agents"
+  />
+  <Card
+    title="RAG & Advanced Patterns"
+    description="Implement retrieval-augmented generation and advanced AI workflows"
+    href="/docs/libraries/vercel-ai-sdk/rag-advanced-patterns"
+  />
+</Cards>
+
+## Key Features
+
+### Unified Provider Interface
+
+Switch between AI providers with just a few lines of code:
+
+```ts
+// Ollama (local)
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+const model = ollama('llama3.2');
+
+// Groq (cloud)
+import { createGroq } from '@ai-sdk/groq';
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
+const model = groq('llama-3.2-90b-text-preview');
+
+// Together.ai
+import { createTogether } from '@ai-sdk/together';
+const together = createTogether({ apiKey: process.env.TOGETHER_API_KEY });
+const model = together('meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo');
+```
+
+### Streaming Support
+
+Built-in streaming for real-time responses:
+
+```tsx
+import { useChat } from '@ai-sdk/react';
+
+export default function Chat() {
+  const { messages, input, handleSubmit, handleInputChange } = useChat();
+  // Automatic streaming UI
+}
+```
+
+### Structured Data
+
+Generate type-safe JSON objects:
+
+```ts
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+const { object } = await generateObject({
+  model: ollama('llama3.2'),
+  schema: z.object({
+    title: z.string(),
+    items: z.array(z.string()),
+  }),
+  prompt: 'Generate a todo list',
+});
+```
+
+### Tool Calling
+
+Enable AI to use external tools:
+
+```ts
+import { generateText, tool } from 'ai';
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  tools: {
+    getWeather: tool({
+      description: 'Get weather',
+      parameters: z.object({ location: z.string() }),
+      execute: async ({ location }) => {
+        return { temp: 72, condition: 'sunny' };
+      },
+    }),
+  },
+  prompt: 'What is the weather in SF?',
+});
+```
+
+## Supported Frameworks
+
+- **React / Next.js** - Full support with `@ai-sdk/react`
+- **Vue / Nuxt** - Full support with `@ai-sdk/vue`
+- **Svelte / SvelteKit** - Full support with `@ai-sdk/svelte`
+- **Solid** - Full support with `@ai-sdk/solid`
+- **Node.js** - Backend support with AI SDK Core
+
+## Example Use Cases
+
+- **Chatbots**: Build conversational interfaces with streaming
+- **Content Generation**: Automate writing and creative tasks
+- **Data Extraction**: Extract structured information from text
+- **AI Agents**: Create autonomous systems with tool usage
+- **RAG Systems**: Build knowledge-based question answering
+- **Multi-Modal Apps**: Process text, images, PDFs, and audio
+
+## External Resources
+
+- [Official Documentation](https://sdk.vercel.ai/docs)
+- [GitHub Repository](https://github.com/vercel/ai)
+- [Example Templates](https://vercel.com/templates?type=ai)
+- [API Reference](https://sdk.vercel.ai/docs/reference)
+
+## Community
+
+- [Vercel Community](https://community.vercel.com/c/ai-sdk/62)
+- [GitHub Discussions](https://github.com/vercel/ai/discussions)
+- [Discord](https://discord.gg/vercel)

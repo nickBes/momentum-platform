@@ -1,0 +1,58 @@
+---
+title: Drizzle ORM
+description: Headless TypeScript ORM for PostgreSQL, MySQL, and SQLite
+---
+
+# Drizzle ORM
+
+Drizzle ORM is a headless TypeScript ORM with both relational and SQL-like query APIs. It's lightweight (~7.4kb), performant, type-safe, and serverless-ready by design.
+
+## Quick Links
+
+<Cards>
+  <Card title="Overview" href="/docs/libraries/drizzle/drizzle-overview" description="Introduction to Drizzle ORM and core concepts" />
+  <Card title="Schema" href="/docs/libraries/drizzle/drizzle-schema" description="Define your database schema with TypeScript" />
+  <Card title="CRUD Operations" href="/docs/libraries/drizzle/drizzle-crud" description="Create, read, update, and delete operations" />
+  <Card title="Migrations" href="/docs/libraries/drizzle/drizzle-migrations" description="Manage database schema changes with Drizzle Kit" />
+  <Card title="Advanced Queries" href="/docs/libraries/drizzle/drizzle-queries" description="Relational queries, joins, and complex operations" />
+</Cards>
+
+## Key Features
+
+- 🎯 **Type-safe** - Full TypeScript support with automatic type inference
+- ⚡ **Performant** - Lightweight with zero dependencies
+- 🌳 **Tree-shakeable** - Only include what you use
+- 🔄 **Dual API** - Both SQL-like and relational query APIs
+- 🚀 **Serverless-ready** - Works seamlessly in serverless environments
+- 🗄️ **Multi-database** - PostgreSQL, MySQL, SQLite, and SingleStore
+
+## Installation
+
+```bash
+npm i drizzle-orm
+npm i -D drizzle-kit
+```
+
+## Quick Example
+
+```typescript
+import { pgTable, serial, text } from 'drizzle-orm/pg-core';
+import { drizzle } from 'drizzle-orm/node-postgres';
+
+// Define schema
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+});
+
+// Query database
+const db = drizzle(process.env.DATABASE_URL);
+const allUsers = await db.select().from(users);
+```
+
+## External Resources
+
+- [Official Documentation](https://orm.drizzle.team)
+- [GitHub Repository](https://github.com/drizzle-team/drizzle-orm)
+- [Drizzle Studio](https://local.drizzle.studio)

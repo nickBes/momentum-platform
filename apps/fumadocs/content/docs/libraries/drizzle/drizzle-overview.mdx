@@ -1,0 +1,96 @@
+---
+title: Drizzle ORM Overview
+description: Headless TypeScript ORM with both relational and SQL-like query APIs
+---
+
+# Drizzle ORM
+
+Drizzle ORM is a headless TypeScript ORM with a head. 🐲
+
+> Drizzle is a good friend who's there for you when necessary and doesn't bother when you need some space.
+
+It looks and feels simple, performs on day _1000_ of your project, lets you do things your way, and is there when you need it.
+
+**It's the only ORM with both relational and SQL-like query APIs**, providing you the best of both worlds when it comes to accessing your relational data.
+
+Drizzle is lightweight, performant, typesafe, non-lactose, gluten-free, sober, flexible and **serverless-ready by design**.
+
+## Key Features
+
+- 🎯 **Type-safe** - Full TypeScript support with automatic type inference
+- ⚡ **Performant** - Lightweight at ~7.4kb minified+gzipped with zero dependencies
+- 🌳 **Tree-shakeable** - Only include what you use
+- 🔄 **Dual API** - Both SQL-like and relational query APIs
+- 🚀 **Serverless-ready** - Works seamlessly in serverless environments
+- 🗄️ **Multi-database** - Support for PostgreSQL, MySQL, SQLite, and SingleStore
+
+## Why Drizzle?
+
+### SQL-like Approach
+**If you know SQL, you know Drizzle.**
+
+Other ORMs tend to deviate from or abstract away SQL, leading to a double learning curve. Drizzle is the opposite - it embraces SQL while providing TypeScript safety.
+
+### Headless Architecture
+Drizzle is designed to be a thin typed layer on top of SQL. You have full control over your queries while enjoying the benefits of type safety and developer experience.
+
+## Supported Databases
+
+- **PostgreSQL** - Full support with pg, postgres.js, node-postgres
+- **MySQL** - Compatible with MySQL 5.7+ and MySQL 8+
+- **SQLite** - Works with better-sqlite3, bun:sqlite, and more
+- **SingleStore** - Full compatibility with SingleStore databases
+
+## Getting Started
+
+Install Drizzle ORM and Drizzle Kit:
+
+```bash
+npm i drizzle-orm
+npm i -D drizzle-kit
+```
+
+Define your schema:
+
+```typescript
+import { pgTable, serial, text, integer } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  age: integer('age'),
+});
+```
+
+Query your database:
+
+```typescript
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { users } from './schema';
+
+const db = drizzle(process.env.DATABASE_URL);
+
+// SQL-like query
+const allUsers = await db.select().from(users);
+
+// Relational query
+const result = await db.query.users.findMany();
+```
+
+## Core Concepts
+
+### Drizzle ORM
+The runtime library for querying your database with type safety.
+
+### Drizzle Kit
+The CLI companion for managing database migrations and schema changes.
+
+### Drizzle Studio
+A visual database browser for exploring and managing your data.
+
+## Learn More
+
+- [Schema Declaration](/docs/libraries/drizzle-schema)
+- [CRUD Operations](/docs/libraries/drizzle-crud)
+- [Migrations](/docs/libraries/drizzle-migrations)
+- [Queries](/docs/libraries/drizzle-queries)

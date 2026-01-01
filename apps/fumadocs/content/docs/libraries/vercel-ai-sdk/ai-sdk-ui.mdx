@@ -1,0 +1,357 @@
+---
+title: AI SDK UI
+description: Build interactive chat and completion interfaces with framework-agnostic hooks
+---
+
+# AI SDK UI
+
+AI SDK UI provides framework-agnostic hooks for building chat, completion, and generative user interfaces with popular frameworks like Next.js, React, Vue, and Svelte.
+
+## Core Hooks
+
+### useChat
+
+Build real-time chat interfaces with streaming support.
+
+```tsx
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+
+export default function Chat() {
+  const { messages, input, handleInputChange, handleSubmit } = useChat();
+
+  return (
+    <div>
+      {messages.map(m => (
+        <div key={m.id}>
+          {m.role === 'user' ? 'User: ' : 'AI: '}
+          {m.content}
+        </div>
+      ))}
+
+      <form onSubmit={handleSubmit}>
+        <input
+          value={input}
+          onChange={handleInputChange}
+          placeholder="Say something..."
+        />
+      </form>
+    </div>
+  );
+}
+```
+
+#### API Route (Next.js)
+
+```ts
+import { streamText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: ollama('llama3.2'),
+    messages,
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+### useCompletion
+
+Generate text completions for single-turn interactions.
+
+```tsx
+'use client';
+
+import { useCompletion } from '@ai-sdk/react';
+
+export default function Completion() {
+  const { completion, input, handleInputChange, handleSubmit } = useCompletion();
+
+  return (
+    <div>
+      <form onSubmit={handleSubmit}>
+        <input
+          value={input}
+          onChange={handleInputChange}
+          placeholder="Enter a prompt..."
+        />
+      </form>
+      <div>{completion}</div>
+    </div>
+  );
+}
+```
+
+### useObject
+
+Stream structured JSON objects for generative UIs.
+
+```tsx
+'use client';
+
+import { useObject } from '@ai-sdk/react';
+import { z } from 'zod';
+
+export default function ObjectGeneration() {
+  const { object, submit } = useObject({
+    api: '/api/generate-object',
+    schema: z.object({
+      recipe: z.object({
+        name: z.string(),
+        ingredients: z.array(z.string()),
+      }),
+    }),
+  });
+
+  return (
+    <div>
+      <button onClick={() => submit('Generate a pasta recipe')}>
+        Generate Recipe
+      </button>
+      {object && (
+        <div>
+          <h2>{object.recipe?.name}</h2>
+          <ul>
+            {object.recipe?.ingredients?.map((ing, i) => (
+              <li key={i}>{ing}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Advanced Features
+
+### File Attachments
+
+Send images and files with messages.
+
+```tsx
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+
+export default function ChatWithFiles() {
+  const { messages, input, handleSubmit, handleInputChange } = useChat({
+    api: '/api/chat',
+  });
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="file" name="file" />
+      <input
+        value={input}
+        onChange={handleInputChange}
+        placeholder="Message..."
+      />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+```
+
+### Tool Calling
+
+Enable AI to call tools during conversations.
+
+```tsx
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+
+export default function ChatWithTools() {
+  const { messages, input, handleSubmit, handleInputChange } = useChat({
+    api: '/api/chat',
+    experimental_toolInvocation: true,
+  });
+
+  return (
+    <div>
+      {messages.map(m => (
+        <div key={m.id}>
+          {m.toolInvocations?.map(toolInvocation => {
+            const { toolName, toolCallId, state } = toolInvocation;
+
+            if (state === 'result') {
+              return (
+                <div key={toolCallId}>
+                  Tool {toolName} returned: {toolInvocation.result}
+                </div>
+              );
+            }
+
+            return <div key={toolCallId}>Calling {toolName}...</div>;
+          })}
+        </div>
+      ))}
+
+      <form onSubmit={handleSubmit}>
+        <input value={input} onChange={handleInputChange} />
+      </form>
+    </div>
+  );
+}
+```
+
+### Message Metadata
+
+Attach custom metadata to messages.
+
+```tsx
+const { messages, append } = useChat();
+
+// Add message with metadata
+await append({
+  role: 'user',
+  content: 'Hello',
+  metadata: {
+    timestamp: Date.now(),
+    userId: 'user-123',
+  },
+});
+```
+
+### Custom Data Streaming
+
+Stream additional data alongside AI responses.
+
+```ts
+// API Route
+import { streamText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: ollama('llama3.2'),
+    messages,
+    onFinish: async ({ text }) => {
+      // Send custom data
+      return {
+        customData: { processingTime: Date.now() },
+      };
+    },
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+## Framework Support
+
+### React / Next.js
+
+```bash
+npm install ai @ai-sdk/react
+```
+
+```tsx
+import { useChat } from '@ai-sdk/react';
+```
+
+### Vue / Nuxt
+
+```bash
+npm install ai @ai-sdk/vue
+```
+
+```vue
+<script setup>
+import { useChat } from '@ai-sdk/vue';
+</script>
+```
+
+### Svelte / SvelteKit
+
+```bash
+npm install ai @ai-sdk/svelte
+```
+
+```svelte
+<script>
+import { useChat } from '@ai-sdk/svelte';
+</script>
+```
+
+### Solid
+
+```bash
+npm install ai @ai-sdk/solid
+```
+
+```tsx
+import { useChat } from '@ai-sdk/solid';
+```
+
+## Configuration Options
+
+### useChat Options
+
+- **api**: API endpoint (default: `/api/chat`)
+- **id**: Unique chat identifier for persistence
+- **initialMessages**: Pre-populate chat history
+- **onFinish**: Callback when response completes
+- **onError**: Error handler
+- **body**: Additional data to send with requests
+- **headers**: Custom request headers
+
+```tsx
+const { messages } = useChat({
+  api: '/api/chat',
+  id: 'chat-123',
+  initialMessages: [
+    { role: 'assistant', content: 'Hello! How can I help?' },
+  ],
+  onFinish: (message) => {
+    console.log('Completed:', message);
+  },
+  body: {
+    userId: 'user-123',
+  },
+});
+```
+
+## Error Handling
+
+Handle errors in your UI components.
+
+```tsx
+const { messages, error, reload } = useChat();
+
+if (error) {
+  return (
+    <div>
+      <p>Error: {error.message}</p>
+      <button onClick={() => reload()}>Retry</button>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Show loading states**: Use `isLoading` to indicate AI is thinking
+2. **Handle errors gracefully**: Provide retry mechanisms
+3. **Implement message persistence**: Save chat history for continuity
+4. **Stream for better UX**: Always prefer streaming over waiting
+5. **Add metadata**: Track timestamps, user IDs, and other context
+6. **Optimize re-renders**: Memoize expensive computations

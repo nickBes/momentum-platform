@@ -1,0 +1,100 @@
+---
+title: Vercel AI SDK Overview
+description: Introduction to the AI SDK - TypeScript toolkit for building AI applications
+---
+
+# Vercel AI SDK Overview
+
+The **AI SDK** is the TypeScript toolkit designed to help developers build AI-powered applications and agents with React, Next.js, Vue, Svelte, Node.js, and more.
+
+## Why Use the AI SDK?
+
+Integrating large language models (LLMs) into applications is complicated and heavily dependent on the specific model provider you use.
+
+The AI SDK standardizes integrating artificial intelligence (AI) models across supported providers, enabling developers to focus on building great AI applications without wasting time on technical details.
+
+### Key Benefits
+
+- **Unified Interface**: Switch between AI providers with minimal code changes
+- **Framework Agnostic**: Works with React, Next.js, Vue, Svelte, and Node.js
+- **Type Safety**: Full TypeScript support for better developer experience
+- **Streaming Support**: Built-in streaming for real-time AI responses
+- **Tool Integration**: Easy integration with external tools and APIs
+
+## Core Libraries
+
+The AI SDK consists of two main libraries:
+
+### AI SDK Core
+
+A unified API for generating text, structured objects, tool calls, and building agents with LLMs.
+
+**Key Functions:**
+- `generateText` - Generate text and tool calls for non-interactive use cases
+- `streamText` - Stream text and tool calls for interactive applications
+- `generateObject` - Generate structured data matching a Zod schema
+- `streamObject` - Stream structured objects for real-time UIs
+
+### AI SDK UI
+
+Framework-agnostic hooks for quickly building chat and generative user interfaces.
+
+**Key Hooks:**
+- `useChat` - Real-time chat capabilities
+- `useCompletion` - Text completions
+- `useObject` - Streaming structured data
+- `useAssistant` - Interactive assistant features
+
+## Getting Started
+
+### Installation
+
+```bash
+npm install ai @ai-sdk/react
+# Install OpenAPI-compatible provider for Ollama
+npm install @ai-sdk/openai-compatible
+```
+
+### Basic Example
+
+```tsx
+import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+
+const ollama = createOpenAICompatible({
+  name: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
+});
+
+const { text } = await generateText({
+  model: ollama('llama3.2'),
+  prompt: 'What is the meaning of life?',
+});
+
+console.log(text);
+```
+
+## Supported Providers
+
+The AI SDK supports multiple open-source and compatible providers:
+
+- **OpenAPI Compatible**: Ollama, LM Studio, LocalAI, vLLM, text-generation-webui
+- **Self-Hosted Models**: Llama, Mistral, Qwen, DeepSeek, Phi
+- **Open Platforms**: Groq, Together.ai, Fireworks, Replicate, Baseten
+- **Hugging Face**: Inference API and Endpoints
+
+## Use Cases
+
+- **Chatbots**: Build conversational interfaces with streaming support
+- **Content Generation**: Automate writing tasks and content creation
+- **Data Extraction**: Extract structured information from unstructured text
+- **Agents**: Create AI agents that can use tools to accomplish tasks
+- **RAG Systems**: Build retrieval-augmented generation applications
+- **Multi-Modal Apps**: Process text, images, PDFs, and more
+
+## Next Steps
+
+- Explore AI SDK Core for backend integration
+- Learn about AI SDK UI for frontend components
+- Check out provider-specific features
+- Build your first agent with tool calling
