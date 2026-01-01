@@ -1,0 +1,60 @@
+---
+title: Documentation
+description: Project documentation for developers and LLMs
+---
+
+Welcome to the project documentation. This guide covers frontend practices, API development with oRPC contracts, and AI SDK integration.
+
+## Getting Started
+
+<Cards>
+  <Card title="Frontend Practices" href="/docs/frontend-practices" />
+  <Card title="Working with Contracts" href="/docs/working-with-contracts" />
+  <Card title="AI SDK Integration" href="/docs/ai-sdk-integration" />
+</Cards>
+
+## Project Structure
+
+```
+apps/
+├── web/              # Next.js web application
+│   ├── src/
+│   │   ├── app/      # App Router pages and API routes
+│   │   ├── components/
+│   │   │   ├── auth/     # Authentication components
+│   │   │   ├── chat/     # Chat feature components
+│   │   │   ├── layout/   # Layout components
+│   │   │   └── ui/       # Base UI components
+│   │   ├── contexts/     # React contexts
+│   │   ├── routers/      # oRPC router implementations
+│   │   └── utils/        # Utilities
+│   └── ...
+├── fumadocs/         # Documentation site
+│   └── content/docs/ # MDX documentation
+packages/
+├── api/              # API contracts (oRPC)
+├── auth/             # Authentication (better-auth)
+├── config/           # Shared configuration
+├── db/               # Database (Drizzle ORM)
+└── schemas/          # Shared Zod schemas (AI, validation)
+```
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Framework | Next.js 15 (App Router) |
+| Styling | Tailwind CSS v4 + DaisyUI |
+| Components | React Aria Components + tailwind-variants |
+| API | oRPC (type-safe RPC) |
+| Auth | better-auth |
+| Database | Drizzle ORM |
+| AI | AI SDK 6 |
+| Validation | Zod v4 |
+
+## Library Documentation
+
+<Cards>
+  <Card title="DaisyUI Reference" href="/docs/libraries/daisyui-reference" />
+  <Card title="Zod" href="/docs/libraries/zod" />
+</Cards>

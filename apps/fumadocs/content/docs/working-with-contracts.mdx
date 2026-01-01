@@ -1,0 +1,229 @@
+---
+title: Working with Contracts
+description: Type-safe API development with oRPC contracts and routers
+---
+
+## Overview
+
+We use [oRPC](https://orpc.unnoq.com/) for end-to-end type-safe APIs. The architecture consists of:
+
+1. **Contract** (`packages/api/src/contract.ts`) - Schema definitions and API shape
+2. **Router** (`apps/web/src/routers/index.ts`) - Implementation handlers
+3. **Client** (`apps/web/src/utils/orpc.ts`) - Type-safe client for frontend
+
+## Defining Contracts
+
+Contracts define the API schema using Zod and are shared between server and client:
+
+```tsx
+// packages/api/src/contract.ts
+import { oc } from "@orpc/contract";
+import { z } from "zod";
+
+// Define reusable schemas
+export const DatasetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export type Dataset = z.infer<typeof DatasetSchema>;
+
+// Define contract for a procedure
+export const searchDatasetsContract = oc
+  .input(z.object({ query: z.string() }))
+  .output(z.array(DatasetSchema));
+
+// Export full contract
+export const contract = oc.router({
+  healthCheck: oc.output(z.string()),
+  privateData: oc.output(z.object({ message: z.string() })),
+  searchDatasets: searchDatasetsContract,
+});
+```
+
+## Implementing Routers
+
+Routers implement the contract handlers in the web app:
+
+```tsx
+// apps/web/src/routers/index.ts
+import { os, requireAuth } from "@momentum/api";
+import { contract } from "@momentum/api/contract";
+
+const searchDatasets = os
+  .contract(contract.searchDatasets)
+  .use(requireAuth)
+  .handler(async ({ input, context }) => {
+    const { query } = input;
+    
+    // Query database or external service
+    const datasets = await db.datasets.findMany({
+      where: { name: { contains: query } },
+    });
+    
+    return datasets;
+  });
+
+export const appRouter = os.router({
+  healthCheck,
+  privateData,
+  searchDatasets,
+});
+```
+
+### Middleware
+
+Use middleware for authentication and authorization:
+
+```tsx
+// packages/api/src/index.ts
+import { os } from "@orpc/server";
+
+export const requireAuth = os.middleware(async ({ context, next }) => {
+  if (!context.session?.user) {
+    throw new Error("Unauthorized");
+  }
+  return next({
+    context: {
+      ...context,
+      user: context.session.user,
+    },
+  });
+});
+```
+
+## Client Setup
+
+### Query Client Configuration
+
+```tsx
+// apps/web/src/utils/orpc.ts
+import { createORPCClient } from "@orpc/client";
+import { createORPCReactQueryUtils } from "@orpc/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { contract } from "@momentum/api/contract";
+
+export const queryClient = new QueryClient();
+
+export const orpc = createORPCClient(contract, {
+  baseURL: "/api/rpc",
+});
+
+export const orpcUtils = createORPCReactQueryUtils(orpc);
+```
+
+### Using in Components
+
+```tsx
+// Direct call (for event handlers, async functions)
+const handleSearch = async (query: string) => {
+  const results = await orpc.searchDatasets.call({ query });
+  return results;
+};
+
+// With useAsyncList (for search with abort support)
+const list = useAsyncList({
+  load: async ({ signal, filterText }) => {
+    const results = await orpc.searchDatasets.call(
+      { query: filterText ?? "" },
+      { signal }
+    );
+    return { items: results };
+  },
+});
+
+// With React Query hooks
+const { data, isLoading } = orpcUtils.searchDatasets.useQuery({
+  input: { query: searchTerm },
+});
+```
+
+## API Route Handler
+
+The oRPC handler is mounted in Next.js App Router:
+
+```tsx
+// apps/web/src/app/api/rpc/[[...rest]]/route.ts
+import { createNextHandler } from "@orpc/next";
+import { appRouter } from "@/routers";
+
+const handler = createNextHandler({
+  router: appRouter,
+  // Context is created per-request
+  createContext: async (req) => {
+    const session = await auth.api.getSession({
+      headers: req.headers,
+    });
+    return { session };
+  },
+});
+
+export { handler as GET, handler as POST };
+```
+
+## Best Practices
+
+### 1. Colocate Schemas in API Package
+
+Define reusable schemas in `packages/api/src/schemas/`:
+
+```tsx
+// packages/api/src/schemas/ai.ts
+export const DatasetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export type Dataset = z.infer<typeof DatasetSchema>;
+```
+
+### 2. Re-export Types from Context
+
+When types are used across features, re-export from context:
+
+```tsx
+// contexts/dataset-context.tsx
+export type { Dataset } from "@momentum/schemas/ai";
+```
+
+### 3. Use Contract-First Development
+
+1. Define the contract schema first
+2. Implement the router handler
+3. Use the typed client in the frontend
+
+### 4. Handle Errors Gracefully
+
+```tsx
+const handleAction = async () => {
+  try {
+    const result = await orpc.someAction.call({ data });
+    toast({ title: "Success" });
+  } catch (error) {
+    if (error instanceof ORPCError) {
+      toast({ title: "Error", description: error.message, variant: "error" });
+    }
+  }
+};
+```
+
+## Project Structure
+
+```
+packages/api/
+├── src/
+│   ├── contract.ts      # API contracts
+│   ├── context.ts       # Request context type
+│   ├── index.ts         # Server utilities, middleware
+│   ├── routers/
+│   │   └── index.ts     # Router implementations
+│   └── schemas/
+│       ├── ai.ts        # AI-related schemas
+│       └── index.ts     # Schema exports
+
+apps/web/
+├── src/
+│   ├── app/api/rpc/     # oRPC API route
+│   ├── routers/         # App-specific router implementations
+│   └── utils/orpc.ts    # Client setup
+```

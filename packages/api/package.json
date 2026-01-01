@@ -1,0 +1,21 @@
+{
+  "name": "@momentum/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/contract.ts"
+    },
+    "./contract": {
+      "default": "./src/contract.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@orpc/contract": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "@momentum/config": "workspace:*"
+  }
+}

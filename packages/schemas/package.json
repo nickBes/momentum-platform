@@ -1,0 +1,21 @@
+{
+    "name": "@momentum/schemas",
+    "type": "module",
+    "exports": {
+        ".": {
+            "default": "./src/index.ts"
+        },
+        "./ai": {
+            "default": "./src/ai.ts"
+        }
+    },
+    "scripts": {},
+    "dependencies": {
+        "zod": "catalog:",
+        "ai": "catalog:"
+    },
+    "devDependencies": {
+        "typescript": "catalog:",
+        "@momentum/config": "workspace:*"
+    }
+}
