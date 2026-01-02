@@ -8,11 +8,9 @@ import { genericOAuth, keycloak } from "better-auth/plugins";
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
-
     schema: schema,
   }),
   trustedOrigins: [process.env.CORS_ORIGIN || ""],
-  emailAndPassword: { enabled: true },
   plugins: [
     nextCookies(),
     genericOAuth({
